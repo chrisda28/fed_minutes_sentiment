@@ -10,68 +10,104 @@ MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 
 def get_fomc_urls():  # this function takes a couple of minutes to run
-    """return list of valid fomc minutes url for past 2 years"""
+    """checks for FOMC minutes URLs over a two-year period,
+     verifying each potential date and adding valid URLs to a list"""
     base_url = "https://www.federalreserve.gov/monetarypolicy/fomcminutes{}.htm"
     urls = []
 
-    for year in range(TWO_YEARS_AGO, CURRENT_YEAR + 1):
-        for month in MONTHS:
-            for day in range(1, 31):
+    for year in range(TWO_YEARS_AGO, CURRENT_YEAR + 1):   # 2 year span
+        for month in MONTHS:   # span all months
+            for day in range(1, 31):  # span all possible days
                 try:
-                    meet_date = date(year, month, day)
-                    url = base_url.format(meet_date.strftime("%Y%m%d"))
-                    response = requests.head(url)  # .head is used since not concerned with page content yet
+                    meet_date = date(year, month, day)  # create date object
+                    url = base_url.format(meet_date.strftime("%Y%m%d"))  # format the placeholder in URL above
+                    response = requests.head(url)  # .head is used since not concerned with page content yet,
                     if response.status_code == 200:  # check if request went through
                         urls.append(url)  # attach valid url to list
                 except ValueError:
                     continue  # its invalid so skip this iteration
     return urls
 
-# testurl = "https://www.federalreserve.gov/monetarypolicy/fomcminutes20220126.htm"
-# response = requests.get(testurl)
-# webpage = response.text
-# soup = BeautifulSoup(webpage, 'html.parser')
-# article = soup.find('div', id='article')
-# for script in article(["script", "style"]):
-#     script.decompose()
-# text = article.get_text()
-# # lines = (line.strip() for line in text.splitlines())
-# #
-# # # Break multi-headlines into a line each
-# # chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-# #
-# # # Drop blank lines
-# # text = '\n'.join(chunk for chunk in chunks if chunk)
-# print(text)
-
 
 def scrape(url):
     date_string = url.split("/")[-1]   # get the data portion of the url
-    date_string = date_string.replace(".htm", "")  # remove the .htm part of the url
+    date_string = date_string.replace(".htm", "")  # remove the .htm part to get just the date
     try:
-        time.sleep(10)
-        response = requests.get(url)
-        if response.status_code == 200:
-            webpage = response.text
-            soup = BeautifulSoup(webpage, 'html.parser')
-            article = soup.find('div', id='article')
-            return {"date": date_string, "text": article.get_text()}  # return dict of data and article text
+        time.sleep(10)  # pause to not overload server
+        response = requests.get(url)  # make request
+        response.raise_for_status()  # error handling
+        webpage = response.text
+        soup = BeautifulSoup(webpage, 'html.parser')  # create scraping object
+        article = soup.find('div', id='article')  # scraping entire article
+        if not article:
+            print(f"Could not find article with url: {url}")
+
+        for item in article(["script", "style"]):  # removing JS and CSS elements in the article
+            item.decompose()
+            # Extract text and clean it
+        lines = [line.strip() for line in article.get_text().splitlines() if line.strip()]
+        text = '\n'.join(lines)
+        return {"date": date_string, "text": text}  # return dict of data and article text
     except Exception as e:
-        print(f"error {str(e)}")
+        print(f"Error: {str(e)}")
         return None
 
 
-# def clean_text(text):
-#     count = 1
-#     for item in article(["script", "style"]):
-#         item.decompose()
-#     article_text = article.get_text()
-#     with open(file=f"file{count}", mode="w") as file:
-#         csv_file = file.write(article_text)
+def clean_text_files(scraped_data):
+    """write FOMC minutes text into individual files"""
+    for date, text in scraped_data.items():
+        filename = f"{date}.txt"
+
+        with open(file=filename, mode="w", encoding="utf-8") as file:
+            file.write(text)
+        print(f"Written: {filename}")
+
+
+def main():
+    urls = get_fomc_urls()
+    scraped_data = {}
+    for url in urls:
+        result = scrape(url)
+        if result:
+            scraped_data[result['date']] = result['text']
+
+    print("Writing data into files now")
+    clean_text_files(scraped_data=scraped_data)
+    print("Scraping complete.")
+
+
+if __name__ == "__main__":
+    main()
+
+
+# def scrape(url):
+#     date_string = url.split("/")[-1]   # get the data portion of the url
+#     date_string = date_string.replace(".htm", "")  # remove the .htm part to get just the date
+#     try:
+#         time.sleep(10)  # pause to not overload server
+#         response = requests.get(url)   # make request
+#         if response.status_code == 200:  # check if request went through
+#             webpage = response.text
+#             soup = BeautifulSoup(webpage, 'html.parser')  # create scraping object
+#             article = soup.find('div', id='article')  # scraping entire article
 #
-#     count += 1
-
-
-
-
-
+#             for item in article(["script", "style"]):  # removing JS and CSS elements in the article
+#                 item.decompose()
+#             text = article.get_text()   # removing HTML tags, leaving just the text
+#             lines = [line.strip() for line in text.splitlines()]  # split text into lines and remove
+#             # leading/trailing whitespace
+#             chunks = []
+#             for line in lines:  # break lines into phrases (chunks) and remove extra whitespace
+#                 phrases = line.split("  ")   #
+#                 for phrase in phrases:
+#                     cleaned_phrase = phrase.strip()  # remove leading/trailing whitespace from each phrase
+#                     chunks.append(cleaned_phrase)
+#             cleaned_chunks = []
+#             for chunk in chunks:  # filtering out empty chunks before appending
+#                 if chunk:
+#                     cleaned_chunks.append(chunk)
+#             text = '\n'.join(cleaned_chunks)  # join clean chunks with new lines
+#             return {"date": date_string, "text": text}  # return dict of data and article text
+#     except Exception as e:
+#         print(f"Error: {str(e)}")
+#         return None
