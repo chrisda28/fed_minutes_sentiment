@@ -3,7 +3,9 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import requests
 from datetime import datetime, date
+import os
 
+OUTPUT_FOLDER = "fed_minutes"
 CURRENT_YEAR = datetime.now().year   # scraping Fed meeting minutes data of past 2 years
 TWO_YEARS_AGO = CURRENT_YEAR - 2
 MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
@@ -57,10 +59,13 @@ def scrape(url):
 
 def to_text_files(scraped_data):
     """write cleaned FOMC minutes text into individual files"""
+    if not os.path.exists(OUTPUT_FOLDER):   # make an output folder for text files if it doesn't exist already
+        os.makedirs(OUTPUT_FOLDER)
+
     for dates, text in scraped_data.items():
         filename = f"{dates}.txt"
 
-        with open(file=filename, mode="w", encoding="utf-8") as file:
+        with open(file=f"{OUTPUT_FOLDER}/{filename}", mode="w", encoding="utf-8") as file:
             file.write(text)
         print(f"Written: {filename}")
 
@@ -78,5 +83,5 @@ def main():
     print("Scraping complete.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":   # this takes a few minutes to run
     main()
