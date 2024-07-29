@@ -4,7 +4,7 @@ from bs4 import BeautifulSoup
 import requests
 from datetime import datetime, date
 
-CURRENT_YEAR = datetime.now().year   # scraping data of past 2 years
+CURRENT_YEAR = datetime.now().year   # scraping Fed meeting minutes data of past 2 years
 TWO_YEARS_AGO = CURRENT_YEAR - 2
 MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
@@ -12,7 +12,7 @@ MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 def get_fomc_urls():  # this function takes a couple of minutes to run
     """checks for FOMC minutes URLs over a two-year period,
      verifying each potential date and adding valid URLs to a list"""
-    base_url = "https://www.federalreserve.gov/monetarypolicy/fomcminutes{}.htm"
+    base_url = "https://www.federalreserve.gov/monetarypolicy/fomcminutes{}.htm"  # Fed site with placeholder for date
     urls = []
 
     for year in range(TWO_YEARS_AGO, CURRENT_YEAR + 1):   # 2 year span
@@ -25,12 +25,12 @@ def get_fomc_urls():  # this function takes a couple of minutes to run
                     if response.status_code == 200:  # check if request went through
                         urls.append(url)  # attach valid url to list
                 except ValueError:
-                    continue  # its invalid so skip this iteration
+                    continue  # it's an invalid date so skip this iteration
     return urls
 
 
 def scrape(url):
-    date_string = url.split("/")[-1]   # get the data portion of the url
+    date_string = url.split("/")[-1]   # get the date portion of the url
     date_string = date_string.replace(".htm", "")  # remove the .htm part to get just the date
     try:
         time.sleep(10)  # pause to not overload server
@@ -44,19 +44,21 @@ def scrape(url):
 
         for item in article(["script", "style"]):  # removing JS and CSS elements in the article
             item.decompose()
-            # Extract text and clean it
-        lines = [line.strip() for line in article.get_text().splitlines() if line.strip()]
-        text = '\n'.join(lines)
+        # Extract text and clean it
+        lines = [line.strip() for line in article.get_text().splitlines() if line.strip()]  # loop is splitting text
+        # into lines and only trimming whitespace of lines with non-empty strings.
+        # the condition is true for lines that are not empty or just whitespace.
+        text = '\n'.join(lines)   # ensuring that there are no blank lines
         return {"date": date_string, "text": text}  # return dict of data and article text
     except Exception as e:
         print(f"Error: {str(e)}")
         return None
 
 
-def clean_text_files(scraped_data):
-    """write FOMC minutes text into individual files"""
-    for date, text in scraped_data.items():
-        filename = f"{date}.txt"
+def to_text_files(scraped_data):
+    """write cleaned FOMC minutes text into individual files"""
+    for dates, text in scraped_data.items():
+        filename = f"{dates}.txt"
 
         with open(file=filename, mode="w", encoding="utf-8") as file:
             file.write(text)
@@ -64,50 +66,17 @@ def clean_text_files(scraped_data):
 
 
 def main():
-    urls = get_fomc_urls()
     scraped_data = {}
+    urls = get_fomc_urls()   # get list of valid minutes URLs for past 2 years
     for url in urls:
-        result = scrape(url)
+        result = scrape(url)   # scraping each URL
         if result:
-            scraped_data[result['date']] = result['text']
+            scraped_data[result['date']] = result['text']  # filling scraped data into dictionary
 
     print("Writing data into files now")
-    clean_text_files(scraped_data=scraped_data)
+    to_text_files(scraped_data=scraped_data)
     print("Scraping complete.")
 
 
 if __name__ == "__main__":
     main()
-
-
-# def scrape(url):
-#     date_string = url.split("/")[-1]   # get the data portion of the url
-#     date_string = date_string.replace(".htm", "")  # remove the .htm part to get just the date
-#     try:
-#         time.sleep(10)  # pause to not overload server
-#         response = requests.get(url)   # make request
-#         if response.status_code == 200:  # check if request went through
-#             webpage = response.text
-#             soup = BeautifulSoup(webpage, 'html.parser')  # create scraping object
-#             article = soup.find('div', id='article')  # scraping entire article
-#
-#             for item in article(["script", "style"]):  # removing JS and CSS elements in the article
-#                 item.decompose()
-#             text = article.get_text()   # removing HTML tags, leaving just the text
-#             lines = [line.strip() for line in text.splitlines()]  # split text into lines and remove
-#             # leading/trailing whitespace
-#             chunks = []
-#             for line in lines:  # break lines into phrases (chunks) and remove extra whitespace
-#                 phrases = line.split("  ")   #
-#                 for phrase in phrases:
-#                     cleaned_phrase = phrase.strip()  # remove leading/trailing whitespace from each phrase
-#                     chunks.append(cleaned_phrase)
-#             cleaned_chunks = []
-#             for chunk in chunks:  # filtering out empty chunks before appending
-#                 if chunk:
-#                     cleaned_chunks.append(chunk)
-#             text = '\n'.join(cleaned_chunks)  # join clean chunks with new lines
-#             return {"date": date_string, "text": text}  # return dict of data and article text
-#     except Exception as e:
-#         print(f"Error: {str(e)}")
-#         return None
