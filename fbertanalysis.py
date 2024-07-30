@@ -1,11 +1,12 @@
 import torch
 from transformers import BertForSequenceClassification, BertTokenizer
 import os
+from collections import Counter
 
 FOLDER_PATH = "fed_minutes"
 MODEL_NAME = "ProsusAI/finbert"
 KEYWORDS = ['inflation', 'interest rates', 'unemployment', 'gdp growth', 'monetary policy',
-            'fiscal policy', 'quantitative easing', 'labor market', 'consumer spending',
+            'fiscal policy', 'quantitative easing', 'quantitative tightening', 'labor market', 'consumer spending',
             'supply chain', 'financial stability', 'deficit', 'surplus']
 
 
@@ -16,8 +17,15 @@ def load_model_and_tokenizer():
     return tokenizer, model
 
 
-def extract_keywords(keywords, text):
-    pass
+def extract_keywords(keywords, text):  # LIMITATION: currently finds partial matches (i.e. 'cat' in 'category')
+    """returns dict of keyword and its count within the text"""
+    text = text.lower()  # ensure everything is lowercase
+    # key_count = Counter()  # returns dict of tally amount for each keyword
+    key_count = {}
+    for keyword in keywords:
+        count = text.count(keyword)  # count instance of each keyword
+        key_count[keyword] = count  # set key as keyword and value as its corresponding count
+    return key_count
 
 
 def get_sentiment(tokenizer, text, chunksize=512):
