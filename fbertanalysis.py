@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 from transformers import BertForSequenceClassification, BertTokenizer
 import os
@@ -76,8 +77,35 @@ def analyze_doc(file_path, tokenizer, model, keywords):
         keyword_count = extract_keywords(keywords, text)
         input_dict = get_sentiment_dict(tokenizer, text)
         sentiment = get_sentiment(input_dict, model)
+        return keyword_count, sentiment
 
 
-def analyze_multiple_docs():
+def analyze_multiple_docs(tokenizer, model, ):
+    results = []
+    for text_file in os.listdir(FOLDER_PATH):
+        keyword_dict, sentiment = analyze_doc(file_path=f"{FOLDER_PATH}/{text_file}",
+                                              tokenizer=tokenizer,
+                                              model=model,
+                                              keywords=KEYWORDS)
+        result_dict = {
+            "file_name": text_file,
+            "sentiment": sentiment,
+            **keyword_dict  # unpacking the keyword dict into this one, so it won't be a nested dict
+        }
+        results.append(result_dict)
+    return pd.DataFrame(results)
+
+
+def plot_keyword_trend():
     pass
+
+
+def plot_sentiment_trend():
+    pass
+
+
+
+
+
+
 
