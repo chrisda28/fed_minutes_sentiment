@@ -1,5 +1,4 @@
 import time
-import pandas as pd
 from bs4 import BeautifulSoup
 import requests
 from datetime import datetime, date
@@ -11,13 +10,13 @@ TWO_YEARS_AGO = CURRENT_YEAR - 2
 MONTHS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
 
-def get_fomc_urls():  # this function takes a couple of minutes to run
+def get_fomc_urls():
     """checks for FOMC minutes URLs over a two-year period,
      verifying each potential date and adding valid URLs to a list"""
     base_url = "https://www.federalreserve.gov/monetarypolicy/fomcminutes{}.htm"  # Fed site with placeholder for date
     urls = []
 
-    for year in range(TWO_YEARS_AGO, CURRENT_YEAR + 1):   # 2 year span
+    for year in range(TWO_YEARS_AGO, CURRENT_YEAR + 1):  # 2year span (the + 1 is to ensure we include the current year)
         for month in MONTHS:   # span all months
             for day in range(1, 31):  # span all possible days
                 try:
@@ -71,10 +70,11 @@ def to_text_files(scraped_data):
 
 
 def main():
+    """Main text data extraction function"""
     scraped_data = {}
     urls = get_fomc_urls()   # get list of valid minutes URLs for past 2 years
     for url in urls:
-        result = scrape(url)   # scraping each URL
+        result = scrape(url)   # scraping each URL, returns a dict if scraping successful
         if result:
             scraped_data[result['date']] = result['text']  # filling scraped data into dictionary
 
@@ -83,5 +83,5 @@ def main():
     print("Scraping complete.")
 
 
-if __name__ == "__main__":   # this takes a few minutes to run
+if __name__ == "__main__":   # this takes a few minutes to run!
     main()
