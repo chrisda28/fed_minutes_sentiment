@@ -2,7 +2,8 @@ import pandas as pd
 import torch
 from transformers import BertForSequenceClassification, BertTokenizer
 import os
-
+import matplotlib.pyplot as plt
+import seaborn as sb
 
 FOLDER_PATH = "fed_minutes"
 MODEL_NAME = "ProsusAI/finbert"
@@ -81,6 +82,7 @@ def analyze_doc(file_path, tokenizer, model, keywords):
 
 
 def analyze_multiple_docs(tokenizer, model, ):
+    """get dataframe storing sentiment and keyword count for all text files"""
     results = []
     for text_file in os.listdir(FOLDER_PATH):
         keyword_dict, sentiment = analyze_doc(file_path=f"{FOLDER_PATH}/{text_file}",
@@ -96,13 +98,42 @@ def analyze_multiple_docs(tokenizer, model, ):
     return pd.DataFrame(results)
 
 
-def plot_keyword_trend():
-    pass
+def plot_keyword_heatmap(df, keywords):
+    """generate heatmap showing keyword frequency for each file"""
+    heatmap_data = df[keywords]
+
+    # Create heatmap
+    plt.figure(figsize=(12, 8))
+    sb.heatmap(heatmap_data, cmap="YlOrRd", annot=True, fmt="d")
+
+    plt.title("Keyword Frequency Heatmap")
+    plt.xlabel("Keywords")
+    plt.ylabel("FOMC Minutes")
+    plt.tight_layout()
+    plt.show()
 
 
-def plot_sentiment_trend():
-    pass
+def plot_sentiment_trend(df):
+    """Plot sentiment trend over time"""
+    # Convert file_name to datetime and formatting filename to get just the date
+    df['date'] = pd.to_datetime(df['file_name'].str.replace('fomcminutes', '').str.replace('.txt', ''), format='%Y%m%d')
 
+    # Sort by date
+    df_sorted = df.sort_values('date')
+
+    # Create line plot
+    plt.figure(figsize=(12, 6))
+    plt.plot(df_sorted['date'], df_sorted['sentiment'], marker='o')
+
+    plt.title("Sentiment Trend of FOMC Minutes")
+    plt.xlabel("Date")
+    plt.ylabel("Sentiment (0: Negative, 1: Neutral, 2: Positive)")
+    plt.ylim(-0.5, 2.5)  # Set y-axis limits
+    plt.yticks([0, 1, 2], ['Negative', 'Neutral', 'Positive'])
+    plt.grid(True, linestyle='--', alpha=0.7)
+    plt.tight_layout()
+    plt.xticks(rotation=45)
+    plt.show()
 
 
 
