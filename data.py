@@ -62,10 +62,10 @@ def to_text_files(scraped_data):
         os.makedirs(OUTPUT_FOLDER)
 
     for dates, text in scraped_data.items():
-        filename = f"{dates}.txt"
+        filename = f"{dates}.txt"      # create filename
 
-        with open(file=f"{OUTPUT_FOLDER}/{filename}", mode="w", encoding="utf-8") as file:
-            file.write(text)
+        with open(file=f"{OUTPUT_FOLDER}/{filename}", mode="w", encoding="utf-8") as file:  # create file
+            file.write(text)    # write article text into the created file
         print(f"Written: {filename}")
 
 
@@ -79,7 +79,7 @@ def main():
             scraped_data[result['date']] = result['text']  # filling scraped data into dictionary
 
     print("Writing data into files now")
-    to_text_files(scraped_data=scraped_data)
+    to_text_files(scraped_data=scraped_data)  # turn scraped data into text files
     print("Scraping complete.")
 
 

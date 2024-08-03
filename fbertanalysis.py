@@ -7,14 +7,14 @@ import seaborn as sb
 
 FOLDER_PATH = "fed_minutes"
 MODEL_NAME = "ProsusAI/finbert"
-KEYWORDS = ['inflation', 'interest rates', 'unemployment', 'gdp growth', 'monetary policy',
+KEYWORDS = ['inflation', 'interest rates', 'unemployment', 'gdp growth', 'monetary policy',  # keywords to track
             'fiscal policy', 'debt', 'liquidity', 'labor market', 'consumer spending',
             'supply chain', 'financial stability', 'deficit', 'surplus', 'yield', 'leverage', 'housing', 'mortgage']
 
 
 def load_model_and_tokenizer():
     """initialize model and tokenizer"""
-    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)  # get a hold of pretrained model and tokenizer
+    tokenizer = BertTokenizer.from_pretrained(MODEL_NAME)  # initialize pretrained model and tokenizer
     model = BertForSequenceClassification.from_pretrained(MODEL_NAME)
     return tokenizer, model
 
@@ -30,6 +30,7 @@ def extract_keywords(keywords, text):  # LIMITATION: currently finds partial mat
 
 
 def get_sentiment_dict(tokenizer, text, chunksize=512):  # chunksize max is 512
+    """prepare tokens for sentiment analysis"""
     tokens = tokenizer.encode_plus(text, add_special_tokens=False, return_tensors="pt")
     # tokenizing text, returns PT Tensors
     input_id_chunks = list(tokens['input_ids'][0].split(chunksize - 2))  # splitting each chunk into 510 tokens
@@ -49,7 +50,7 @@ def get_sentiment_dict(tokenizer, text, chunksize=512):  # chunksize max is 512
             input_id_chunks[i] = torch.cat([
                 input_id_chunks[i], torch.tensor([0] * pad_length, dtype=torch.long)
             ])
-            attention_mask_chunks[i] = torch.cat([   #  Add padding (0s) to input IDs and attention mask if needed
+            attention_mask_chunks[i] = torch.cat([   # Add padding (0s) to input IDs and attention mask if needed
                 attention_mask_chunks[i], torch.tensor([0] * pad_length, dtype=torch.long)
             ])
     return {   # Stack chunks into single tensors, creating batches for efficient processing
@@ -61,6 +62,7 @@ def get_sentiment_dict(tokenizer, text, chunksize=512):  # chunksize max is 512
 
 
 def get_sentiment(input_dict, model):
+    """find the final sentiment (0, 1, or 2) meaning negative, neutral, or positive"""
     all_probabilities = []
     for i in range(input_dict['input_ids'].shape[0]):  # iterate over each sample in input batch
         chunk_input = {
@@ -72,23 +74,23 @@ def get_sentiment(input_dict, model):
         probabilities = torch.nn.functional.softmax(outputs.logits, dim=-1)  # use softmax to get probabilities
         all_probabilities.append(probabilities)  # put probabilities into list
     mean_probabilities = torch.cat(all_probabilities).mean(dim=0)
-    return torch.argmax(mean_probabilities).item()
+    return torch.argmax(mean_probabilities).item()  # find occurrence of highest probability to get final sentiment
 
 
 def analyze_doc(file_path, tokenizer, model, keywords):
     """find sentiment and keyword count for single document"""
     with open(file=file_path, mode='r', encoding='utf-8') as file:
         text = file.read()   # reading file
-        keyword_count = extract_keywords(keywords, text)
-        input_dict = get_sentiment_dict(tokenizer, text)
-        sentiment = get_sentiment(input_dict, model)
+        keyword_count = extract_keywords(keywords, text)  # find keyword count within text
+        input_dict = get_sentiment_dict(tokenizer, text)  # preparing text for sentiment analysis
+        sentiment = get_sentiment(input_dict, model)  # finding sentiment of text
         return keyword_count, sentiment
 
 
-def analyze_multiple_docs(tokenizer, model, ):
+def analyze_multiple_docs(tokenizer, model):
     """get dataframe storing sentiment and keyword count for all text files"""
     results = []
-    for text_file in os.listdir(FOLDER_PATH):
+    for text_file in os.listdir(FOLDER_PATH):  # use analyze_doc function for multiple articles
         keyword_dict, sentiment = analyze_doc(file_path=f"{FOLDER_PATH}/{text_file}",
                                               tokenizer=tokenizer,
                                               model=model,
@@ -98,8 +100,8 @@ def analyze_multiple_docs(tokenizer, model, ):
             "sentiment": sentiment,
             **keyword_dict  # unpacking the keyword dict into this one, so it won't be a nested dict
         }
-        results.append(result_dict)
-    return pd.DataFrame(results)
+        results.append(result_dict)  # store result into list of dictionaries
+    return pd.DataFrame(results)  # convert to a dataframe
 
 
 def plot_keyword_heatmap(df, keywords):
@@ -107,20 +109,18 @@ def plot_keyword_heatmap(df, keywords):
     heatmap_data = df[keywords]
     filenames = df['file_name'].tolist()  # turning file_names into list
 
-    # Create heatmap
-    plt.figure(figsize=(16, 10))
-    ax = sb.heatmap(heatmap_data, cmap="YlOrRd", annot=True, fmt="d")
+    plt.figure(figsize=(16, 10))  # set figure size
+    ax = sb.heatmap(heatmap_data, cmap="YlOrRd", annot=True, fmt="d")  # Create heatmap
 
     plt.title("Keyword Frequency Heatmap")
     plt.xlabel("Keywords")
     plt.ylabel("FOMC Minutes")
     # Set y-tick labels to filenames and adjust their position
     ax.set_yticks(range(len(filenames)))
-    ax.set_yticklabels(filenames, rotation=0)
+    ax.set_yticklabels(filenames, rotation=0)  # each file name will be tick mark on y-axis
 
-    # Rotate x-axis labels for better readability
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
+    plt.xticks(rotation=45, ha='right')  # Rotate x-axis labels for better readability
+    plt.tight_layout()  # to prevent overlapping
     plt.show()
 
 
@@ -129,12 +129,10 @@ def plot_sentiment_trend(df):
     # Convert file_name to datetime and formatting filename to get just the date
     df['date'] = pd.to_datetime(df['file_name'].str.replace('fomcminutes', '').str.replace('.txt', ''), format='%Y%m%d')
 
-    # Sort by date
-    df_sorted = df.sort_values('date')
+    df_sorted = df.sort_values('date')   # Sort by date
 
-    # Create line plot
-    plt.figure(figsize=(12, 6))
-    plt.plot(df_sorted['date'], df_sorted['sentiment'], marker='o')
+    plt.figure(figsize=(12, 6))  # set figure size
+    plt.plot(df_sorted['date'], df_sorted['sentiment'], marker='o')  # Create line plot
 
     plt.title("Sentiment Trend of FOMC Minutes")
     plt.xlabel("Date")
@@ -142,7 +140,7 @@ def plot_sentiment_trend(df):
     plt.ylim(-0.5, 2.5)  # Set y-axis limits
     plt.yticks([0, 1, 2], ['Negative', 'Neutral', 'Positive'])
     plt.grid(True, linestyle='--', alpha=0.7)
-    plt.tight_layout()
+    plt.tight_layout()  # to prevent overlapping
     plt.xticks(rotation=45)
     plt.show()
 
